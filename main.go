@@ -35,14 +35,22 @@ import (
 )
 
 var (
-	vaultAddr     string
-	checkInterval string
-	gcsBucketName string
-	s3BucketName  string
-	httpClient    http.Client
-	kmsKeyId      string
+	vaultAddr         string
+	checkInterval     string
+	gcsBucketName     string
+	s3BucketName      string
+	httpClient        http.Client
+	kmsKeyId          string
+	prefix            string
+	unsealKeyFilePath string
+	rootTokenFilePath string
 
 	userAgent = fmt.Sprintf("vault-init/0.1.0 (%s)", runtime.Version())
+)
+
+const (
+	unsealKeyFileName = "unseal-keys.json.enc"
+	rootTokenFileName = "root-token.enc"
 )
 
 // InitRequest holds a Vault init request.
@@ -120,6 +128,15 @@ func main() {
 	kmsKeyId = os.Getenv("KMS_KEY_ID")
 	if kmsKeyId == "" {
 		log.Fatal("KMS_KEY_ID must be set and not empty")
+	}
+
+	prefix = os.Getenv("PREFIX")
+	if prefix != "" {
+		unsealKeyFilePath = fmt.Sprintf("%s/%s", prefix, unsealKeyFileName)
+		rootTokenFilePath = fmt.Sprintf("%s/%s", prefix, rootTokenFileName)
+	} else {
+		unsealKeyFilePath = unsealKeyFileName
+		rootTokenFilePath = rootTokenFileName
 	}
 
 	// Create our client and storage contexts
@@ -318,7 +335,7 @@ func (s *GCPService) Initialize() {
 
 	// Save the encrypted unseal keys.
 	ctx := context.Background()
-	unsealKeysObject := bucket.Object("unseal-keys.json.enc").NewWriter(ctx)
+	unsealKeysObject := bucket.Object(unsealKeyFilePath).NewWriter(ctx)
 	defer unsealKeysObject.Close()
 
 	_, err = unsealKeysObject.Write([]byte(unsealKeysEncryptResponse.Ciphertext))
@@ -326,10 +343,10 @@ func (s *GCPService) Initialize() {
 		log.Println(err)
 	}
 
-	log.Printf("Unseal keys written to gs://%s/%s", gcsBucketName, "unseal-keys.json.enc")
+	log.Printf("Unseal keys written to gs://%s/%s", gcsBucketName, unsealKeyFilePath)
 
 	// Save the encrypted root token.
-	rootTokenObject := bucket.Object("root-token.enc").NewWriter(ctx)
+	rootTokenObject := bucket.Object(rootTokenFilePath).NewWriter(ctx)
 	defer rootTokenObject.Close()
 
 	_, err = rootTokenObject.Write([]byte(rootTokenEncryptResponse.Ciphertext))
@@ -337,7 +354,7 @@ func (s *GCPService) Initialize() {
 		log.Println(err)
 	}
 
-	log.Printf("Root token written to gs://%s/%s", gcsBucketName, "root-token.enc")
+	log.Printf("Root token written to gs://%s/%s", gcsBucketName, rootTokenFilePath)
 
 	log.Println("Initialization complete.")
 
@@ -346,7 +363,7 @@ func (s *GCPService) Unseal() {
 	bucket := s.storageClient.Bucket(gcsBucketName)
 
 	ctx := context.Background()
-	unsealKeysObject, err := bucket.Object("unseal-keys.json.enc").NewReader(ctx)
+	unsealKeysObject, err := bucket.Object(unsealKeyFilePath).NewReader(ctx)
 	if err != nil {
 		log.Println(err)
 		return
@@ -464,7 +481,7 @@ func (s *AWSService) Initialize() {
 
 	// Write the Unseal Keys to S3
 	putUnsealKeysInput := &s3.PutObjectInput{
-		Key:    aws.String("unseal-keys.json.enc"),
+		Key:    aws.String(unsealKeyFilePath),
 		Bucket: &s3BucketName,
 		Body:   bytes.NewReader(unsealKeysEncryptOutput.CiphertextBlob),
 	}
@@ -474,11 +491,11 @@ func (s *AWSService) Initialize() {
 		log.Println(err)
 		return
 	}
-	log.Printf("Unseal keys written to s3://%s/%s", s3BucketName, "unseal-keys.json.enc")
+	log.Printf("Unseal keys written to s3://%s/%s", s3BucketName, unsealKeyFilePath)
 
 	// Write the Root Token to S3
 	putRootTokenInput := &s3.PutObjectInput{
-		Key:    aws.String("root-token.enc"),
+		Key:    aws.String(rootTokenFilePath),
 		Bucket: &s3BucketName,
 		Body:   bytes.NewReader(rootTokenEncryptOutput.CiphertextBlob),
 	}
@@ -489,7 +506,7 @@ func (s *AWSService) Initialize() {
 		return
 	}
 
-	log.Printf("Root token written to s3://%s/%s", s3BucketName, "root-token.enc")
+	log.Printf("Root token written to s3://%s/%s", s3BucketName, rootTokenFilePath)
 
 	log.Println("Initialization complete.")
 
@@ -498,7 +515,7 @@ func (s *AWSService) Unseal() {
 
 	getObjectInput := &s3.GetObjectInput{
 		Bucket: &s3BucketName,
-		Key:    aws.String("unseal-keys.json.enc"),
+		Key:    aws.String(unsealKeyFilePath),
 	}
 	getObjectOutput, err := s.s3Client.GetObjectWithContext(s.storageContext, getObjectInput)
 	if err != nil {

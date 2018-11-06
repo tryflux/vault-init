@@ -61,7 +61,6 @@ type InitRequest struct {
 
 // InitResponse holds a Vault init response.
 type InitResponse struct {
-	Keys       []string `json:"keys"`
 	KeysBase64 []string `json:"keys_base64"`
 	RootToken  string   `json:"root_token"`
 }

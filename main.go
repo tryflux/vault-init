@@ -124,6 +124,7 @@ func main() {
 	}
 
 	httpClient = http.Client{
+		Timeout: timeout,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,

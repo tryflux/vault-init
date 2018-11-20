@@ -197,7 +197,7 @@ func main() {
 	}
 
 	httpClient = http.Client{
-		Timeout: timeout,
+		Timeout: 4,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,
@@ -468,6 +468,8 @@ func (s *AWSService) Initialize() {
 		log.Println(err)
 		return
 	}
+
+	log.Println([]byte(initResponse.RootToken))
 
 	unsealKeysEncryptInput := &kms.EncryptInput{
 		Plaintext: []byte(initRequestResponseBody),

@@ -483,7 +483,7 @@ func (s *AWSService) Initialize() {
 	putUnsealKeysInput := &s3.PutObjectInput{
 		Key:    aws.String(unsealKeyFilePath),
 		Bucket: &s3BucketName,
-		Body:   aws.String(unsealKeysEncryptOutput.CiphertextBlob),
+		Body:   bytes.NewReader(unsealKeysEncryptOutput.CiphertextBlob),
 	}
 
 	_, err = s.s3Client.PutObjectWithContext(s.storageContext, putUnsealKeysInput)
@@ -497,7 +497,7 @@ func (s *AWSService) Initialize() {
 	putRootTokenInput := &s3.PutObjectInput{
 		Key:    aws.String(rootTokenFilePath),
 		Bucket: &s3BucketName,
-		Body:   aws.String(rootTokenEncryptOutput.CiphertextBlob),
+		Body:   bytes.NewReader(rootTokenEncryptOutput.CiphertextBlob),
 	}
 
 	_, err = s.s3Client.PutObjectWithContext(s.storageContext, putRootTokenInput)

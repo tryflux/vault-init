@@ -469,7 +469,7 @@ func (s *AWSService) Initialize() {
 		return
 	}
 
-	log.Println([]byte(initResponse.RootToken))
+	log.Println(initResponse.RootToken)
 
 	unsealKeysEncryptInput := &kms.EncryptInput{
 		Plaintext: []byte(initRequestResponseBody),
